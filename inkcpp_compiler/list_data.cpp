@@ -25,9 +25,9 @@ namespace ink::compiler::internal
 	}
 	std::vector<list_data::named_list_flag> list_data::get_flags() const {
 		std::vector<named_list_flag> result{};
-		size_t begin = 0;
+		int begin = 0;
 		for(size_t i = 0; i < _list_end.size(); ++i) {
-			for(size_t j = begin; j < _list_end[i]; ++j) {
+			for(int j = begin; j < _list_end[i]; ++j) {
 				if (_flag_names[j] != "") {
 					result.push_back({
 							_flag_names[j],

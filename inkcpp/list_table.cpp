@@ -649,6 +649,35 @@ namespace ink::runtime::internal
 		return os;
 	}
 #endif
+#ifdef INK_ENABLE_UNREAL
+	FStringBuilderBase& list_table::write(FStringBuilderBase& stringbuilder, list l) const {
+		bool first = true;
+
+		const data_t* entry = getPtr(l.lid);
+		int max_list_len = 0;
+		for(int i = 0; i < numLists(); ++i) {
+			if(hasList(entry,i)) {
+				int len = _list_end[i] - listBegin(i);
+				if (len > max_list_len) max_list_len = len;
+			}
+		}
+		for(int j = 0; j < max_list_len; ++j) {
+			for(int i = 0; i < numLists(); ++i) {
+				int len = _list_end[i] - listBegin(i);
+				if(j < len && hasList(entry, i)) {
+					int flag = listBegin(i) + j;
+					if(hasFlag(entry,flag) && _flag_names[flag]) {
+						if(!first) {
+							stringbuilder << TEXT(", ");
+						} else { first = false; }
+						stringbuilder << _flag_names[flag];
+					}
+				}
+			}
+		}
+		return stringbuilder;
+	}
+#endif
 
 }
 

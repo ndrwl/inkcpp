@@ -303,5 +303,8 @@ namespace ink::runtime::internal
 #ifdef INK_ENABLE_STL
 		std::ostream& write(std::ostream&,list) const;
 #endif
+#ifdef INK_ENABLE_UNREAL
+		FStringBuilderBase& write(FStringBuilderBase&,list) const;
+#endif
 	};
 }

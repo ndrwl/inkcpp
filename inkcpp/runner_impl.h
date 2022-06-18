@@ -29,7 +29,7 @@ namespace ink::runtime::internal
 	public:
 		// Creates a new runner at the start of a loaded ink story
 		runner_impl(const story_impl*, globals);
-		virtual ~runner_impl();
+		virtual ~runner_impl() override;
 
 		// used by the globals object to do garbage collection
 		void mark_strings(string_table&) const;
@@ -106,9 +106,9 @@ namespace ink::runtime::internal
 
 		enum class Scope { NONE, GLOBAL, LOCAL};
 		template<Scope Hint = Scope::NONE>	
-		value* get_var(hash_t variableName);
+		value* get_var(hash_t variable_name);
 		template<Scope Hint = Scope::NONE>	
-		const value* get_var(hash_t variableName) const;
+		const value* get_var(hash_t variable_name) const;
 		template<Scope Hint = Scope::NONE>
 		void set_var(hash_t variableName, const value& val, bool is_redef);
 		const value* dereference(const value& val);
@@ -133,9 +133,6 @@ namespace ink::runtime::internal
 
 		// Special code for jumping from the current IP to another
 		void jump(ip_t, bool record_visits = true);
-
-		void run_binary_operator(unsigned char cmd);
-		void run_unary_operator(unsigned char cmd);
 
 		frame_type execute_return();
 		template<frame_type type>

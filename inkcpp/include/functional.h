@@ -122,7 +122,7 @@ namespace ink::runtime::internal
 		function_array_delegate(const D& del) : invocableDelegate(del) { }
 
 		// calls the underlying delegate using arguments on the stack
-		virtual void call(basic_eval_stack* stack, size_t length) override
+		virtual void call(basic_eval_stack* stack, size_t length, string_table& strings) override
 		{
 			// Create variable array
 			TArray<FInkVar> variables;

@@ -45,7 +45,9 @@ namespace ink::runtime::internal
 #ifdef INK_ENABLE_UNREAL
 	template<>
 	FString function_base::pop<FString>(basic_eval_stack* stack) {
-		return FString(pop<const char*>(stack));
+		value val = stack->pop();
+		inkAssert(val.type() == value_type::string, "Type missmatch!");
+		return FString(val.get<value_type::string>());
 	}
 
 	template<>

@@ -1,6 +1,5 @@
 #include "InkAsset.h"
 
-#include "FileHelper.h"
 #if WITH_EDITORONLY_DATA
 #include "EditorFramework/AssetImportData.h"
 #endif
@@ -13,7 +12,7 @@ UInkAsset::UInkAsset()
 void UInkAsset::Serialize(FStructuredArchive::FRecord Record)
 {
 	Super::Serialize(Record);
-	
+
 	// Write to archive?
 	Record.GetUnderlyingArchive() << CompiledStory;
 }

@@ -22,42 +22,95 @@ namespace ink::runtime
 
 namespace ink::runtime::internal
 {
-
-	template<>
-	value* runner_impl::get_var<runner_impl::Scope::GLOBAL>(hash_t variableName) {
-		return _globals->get_variable(variableName);
-	}
-
-	template<>
-	value* runner_impl::get_var<runner_impl::Scope::LOCAL>(hash_t variableName) {
-		value* ret = _stack.get(variableName);
-		if(!ret) { return nullptr; }
-		if(ret->type() == value_type::value_pointer) {
-			auto [name, ci] = ret->get<value_type::value_pointer>();
-			inkAssert(ci == 0, "only Global pointer are allowd on the _stack!");
-			return get_var<runner_impl::Scope::GLOBAL>(name);
+	template<runner_impl::Scope scope_type>
+	value* runner_impl::get_var(hash_t variable_name)
+	{
+		if (scope_type == Scope::NONE) {
+			value* ret = get_var<Scope::LOCAL>(variable_name);
+			if(ret) { return ret; }
+			return get_var<Scope::GLOBAL>(variable_name);
 		}
-		return ret;
+		
+		if (scope_type == Scope::LOCAL) {
+			value* ret = _stack.get(variable_name);
+			if(!ret) { return nullptr; }
+			if(ret->type() == value_type::value_pointer) {
+				auto [name, ci] = ret->get<value_type::value_pointer>();
+				inkAssert(ci == 0, "only Global pointer are allowd on the _stack!");
+				return get_var<runner_impl::Scope::GLOBAL>(name);
+			}
+			return ret;
+		}
+		
+		if (scope_type == Scope::GLOBAL) {
+			return _globals->get_variable(variable_name);
+		}
+		
+		return nullptr;
 	}
 
-	template<>
-	value* runner_impl::get_var<runner_impl::Scope::NONE>(hash_t variableName) {
-		value* ret = get_var<Scope::LOCAL>(variableName);
-		if(ret) { return ret; }
-		return get_var<Scope::GLOBAL>(variableName);
+	template<runner_impl::Scope scope_type>	
+	const value* runner_impl::get_var(hash_t variable_name) const {
+		return const_cast<runner_impl*>(this)->get_var<scope_type>(variable_name);
 	}
-	template<runner_impl::Scope Hint>	
-	const value* runner_impl::get_var(hash_t variableName) const {
-		return const_cast<runner_impl*>(this)->get_var<Hint>(variableName);
-	}
-
-	template<>
-	void runner_impl::set_var<runner_impl::Scope::GLOBAL>(hash_t variableName, const value& val, bool is_redef) {
-		if(is_redef) {
-			value* src = _globals->get_variable(variableName);
-			_globals->set_variable(variableName, src->redefine(val, _globals->lists()));
-		} else {
-			_globals->set_variable(variableName, val);
+	
+	template<runner_impl::Scope scope_type>
+	void runner_impl::set_var(hash_t variableName, const value& val, bool is_redef)
+	{
+		if (scope_type == Scope::NONE) {
+			inkAssert(is_redef, "define set scopeless variables!");
+			if(_stack.get(variableName)) {
+				set_var<Scope::LOCAL>(variableName, val, is_redef);
+			} else {
+				set_var<Scope::GLOBAL>(variableName, val, is_redef);
+			}
+			return;
+		}
+		
+		if (scope_type == Scope::LOCAL) {
+			if(val.type() == value_type::value_pointer) {
+				inkAssert(is_redef == false, "value pointer can only use to initelize variable!");
+				auto [name, ci] = val.get<value_type::value_pointer>();
+				if(ci == 0) { _stack.set(variableName, val); }
+				else {
+					const value* dref = dereference(val);
+					if(dref == nullptr) {
+						value v = val;
+						auto ref = v.get<value_type::value_pointer>();
+						v.set<value_type::value_pointer>(ref.name, 0);
+						_stack.set(variableName, v);
+					} else {
+						_ref_stack.set(variableName, val);
+						_stack.set(variableName, *dref);
+					}
+				}
+			} else {
+				if(is_redef) {
+					value* src = _stack.get(variableName);
+					if(src->type() == value_type::value_pointer) {
+						auto [name, ci] = src->get<value_type::value_pointer>();
+						inkAssert(ci == 0, "Only global pointer are allowed on _stack!");
+						set_var<Scope::GLOBAL>(
+								name,
+								get_var<Scope::GLOBAL>(name)->redefine(val, _globals->lists()),
+								true);
+					} else {
+						_stack.set(variableName, src->redefine(val, _globals->lists()));
+					}
+				} else {
+					_stack.set(variableName, val);
+				}
+			}
+			return;
+		}
+		
+		if (scope_type == Scope::GLOBAL) {
+			if(is_redef) {
+				value* src = _globals->get_variable(variableName);
+				_globals->set_variable(variableName, src->redefine(val, _globals->lists()));
+			} else {
+				_globals->set_variable(variableName, val);
+			}
 		}
 	}
 
@@ -68,57 +121,7 @@ namespace ink::runtime::internal
 		if(ci == 0) { return get_var<Scope::GLOBAL>(name); }
 		return _stack.get_from_frame(ci, name);
 	}
-
-	template<>
-	void runner_impl::set_var<runner_impl::Scope::LOCAL>(hash_t variableName, const value& val, bool is_redef) {
-		if(val.type() == value_type::value_pointer) {
-			inkAssert(is_redef == false, "value pointer can only use to initelize variable!");
-			auto [name, ci] = val.get<value_type::value_pointer>();
-			if(ci == 0) { _stack.set(variableName, val); }
-			else {
-				const value* dref = dereference(val);
-				if(dref == nullptr) {
-					value v = val;
-					auto ref = v.get<value_type::value_pointer>();
-					v.set<value_type::value_pointer>(ref.name, 0);
-					_stack.set(variableName, v);
-				} else {
-					_ref_stack.set(variableName, val);
-					_stack.set(variableName, *dref);
-				}
-			}
-		} else {
-			if(is_redef) {
-				value* src = _stack.get(variableName);
-				if(src->type() == value_type::value_pointer) {
-					auto [name, ci] = src->get<value_type::value_pointer>();
-					inkAssert(ci == 0, "Only global pointer are allowed on _stack!");
-					set_var<Scope::GLOBAL>(
-							name,
-							get_var<Scope::GLOBAL>(name)->redefine(val, _globals->lists()),
-							true);
-				} else {
-					_stack.set(variableName, src->redefine(val, _globals->lists()));
-				}
-			} else {
-				_stack.set(variableName, val);
-			}
-		}
-	}
-
-	template<>
-	void runner_impl::set_var<runner_impl::Scope::NONE>(hash_t variableName, const value& val, bool is_redef) 	
-	{
-		inkAssert(is_redef, "define set scopeless variables!");
-		if(_stack.get(variableName)) {
-			return set_var<Scope::LOCAL>(variableName, val, is_redef);
-		} else {
-			return set_var<Scope::GLOBAL>(variableName, val, is_redef);
-		}
-	}
-
-
-
+	
 	template<typename T>
 	inline T runner_impl::read()
 	{
@@ -246,13 +249,13 @@ namespace ink::runtime::internal
 		// Iterate over the container stack marking any _new_ entries as "visited"
 		if (record_visits)
 		{
-			const container_t* iter;
+			const container_t* cont_iter;
 			size_t num_new = _container.size() - pos;
-			while (_container.iter(iter))
+			while (_container.iter(cont_iter))
 			{
 				if (num_new <= 0)
 					break;
-				_globals->visit(*iter);
+				_globals->visit(*cont_iter);
 				--num_new;
 			}
 		}
@@ -1203,7 +1206,7 @@ namespace ink::runtime::internal
 		_eval.mark_strings(strings);
 
 		// Take into account choice text
-		for (int i = 0; i < _choices.size(); i++)
+		for (size_t i = 0; i < _choices.size(); i++)
 			strings.mark_used(_choices[i]._text);
 	}
 

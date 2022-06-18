@@ -120,8 +120,6 @@ namespace ink
 #ifndef INK_ENABLE_UNREAL
 	void ink_assert(bool condition, const char* msg);
 	[[ noreturn ]] inline void ink_assert(const char* msg) { ink_assert(false, msg); exit(EXIT_FAILURE); }
-#else
-	[[ noreturn ]] inline void ink_fail(const char*) { check(false); throw nullptr; }
 #endif
 
 #ifdef INK_ENABLE_STL
@@ -175,7 +173,7 @@ namespace ink
 	public:
 		optional() {}
 		optional(nullopt_t) {}
-		optional(T&& val): _has_value{true}, _value{std::forward(val)}{}
+		optional(T&& val): _has_value{true}, _value{std::forward<T>(val)}{}
 		optional(const T& val): _has_value{true}, _value{val}{}
 
 		const T& operator*() const { return _value; }
@@ -209,7 +207,7 @@ namespace ink
 #ifdef INK_ENABLE_UNREAL
 #define inkZeroMemory(buff, len) FMemory::Memset(buff, 0, len)
 #define inkAssert(condition, text) checkf(condition, TEXT(text))
-#define inkFail(text) ink::ink_fail(text)
+#define inkFail(text) checkf(false, TEXT(text))
 #else
 #define inkZeroMemory ink::zero_memory
 #define inkAssert ink::ink_assert

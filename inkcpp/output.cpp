@@ -1,4 +1,8 @@
 #include "output.h"
+
+#include <iosfwd>
+#include <sstream>
+
 #include "string_table.h"
 #include "list_table.h"
 #include <system.h>
@@ -77,10 +81,10 @@ namespace ink
 					append(in[i]);
 			}
 
-			template<typename OUT>
-			inline void write_char(OUT& output, char c)
+			template<typename OutputType>
+			inline void write_char(OutputType& output, char c)
 			{
-				static_assert(always_false<OUT>::value, "Invalid output type");
+				static_assert(always_false<OutputType>::value, "Invalid output type");
 			}
 
 			template<>
@@ -155,30 +159,14 @@ namespace ink
 				//  Is there really no equivilent of stringstream in Unreal? Some kind of String Builder?
 
 				// Move up from marker
-				bool hasGlue = false;
-				FString str;
+				bool hasGlue = false, lastNewline = false;
+				TStringBuilder<512> stringbuilder;
 				for (size_t i = start; i < _size; i++)
 				{
-					if (should_skip(i, hasGlue))
+					if (should_skip(i, hasGlue, lastNewline))
 						continue;
-
-					switch (_data[i].type)
-					{
-					case value_type::int32:
-						str += FString::Printf(TEXT("%d"), _data[i].integer_value);
-						break;
-					case value_type::float32:
-						// TODO: Whitespace cleaning
-						str += FString::Printf(TEXT("%f"), _data[i].float_value);
-						break;
-					case value_type::string:
-						str += _data[i].string_val;
-						break;
-					case data_type::newline:
-						str += "\n";
-						break;
-					default:
-						break;
+					if (_data[i].printable()){
+						_data[i].write(stringbuilder, _lists_table);
 					}
 				}
 
@@ -186,7 +174,7 @@ namespace ink
 				_size = start;
 
 				// Return processed string
-				return str;
+				return FString(stringbuilder.ToString()).TrimStart();
 			}
 #endif
 
@@ -368,12 +356,12 @@ namespace ink
 
 				// Return processed string
 				{
-				 auto end = clean_string<false,false>(buffer, buffer+length);
-				 *end = 0;
-				 _last_char = end[-1];
-				 if constexpr (RemoveTail) {
-					 if (_last_char == ' ') { end[-1] = 0; }
-				 }
+					const auto cleaned_str = clean_string<false,false>(buffer, buffer+length);
+					*cleaned_str = 0;
+					_last_char = cleaned_str[-1];
+					if constexpr (RemoveTail) {
+						if (_last_char == ' ') { cleaned_str[-1] = 0; }
+					}
 				}
 				return buffer;
 			}
@@ -468,7 +456,7 @@ namespace ink
 			void basic_stream::mark_strings(string_table& strings) const
 			{
 				// Find all allocated strings and mark them as used
-				for (int i = 0; i < _size; i++)
+				for (size_t i = 0; i < _size; i++)
 				{
 					if (_data[i].type() == value_type::string) {
 						string_type str = _data[i].get<value_type::string>();

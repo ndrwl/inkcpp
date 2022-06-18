@@ -49,7 +49,7 @@ namespace ink::runtime::internal {
 		jump_marker                 // callstack jump
 		};
 
-	// add operator for value_type (to simplify usage templates).
+	// add and subtract operator for value_type (to simplify usage templates).
 	constexpr value_type operator+(value_type t, int i) {
 		return static_cast<value_type>(static_cast<int>(t)+i);
 	}
@@ -57,7 +57,6 @@ namespace ink::runtime::internal {
 	constexpr Command operator+(Command c, int i) {
 		return static_cast<Command>(static_cast<int>(c)+i);
 	}
-
 
 	struct string_type{
 		constexpr string_type(const char* string, bool allocated)
@@ -116,6 +115,12 @@ namespace ink::runtime::internal {
 		 * @param lists may set to list_table if list serelasation needed
 		 */
 		std::ostream& write(std::ostream&, const list_table* lists = nullptr) const;
+#endif
+#ifdef INK_ENABLE_UNREAL
+		/** write  value string to ostream
+		 * @param lists may set to list_table if list serelasation needed
+		 */
+		FStringBuilderBase& write(FStringBuilderBase&, const list_table* lists = nullptr) const;
 #endif
 
 		/// execute the type exclusive overwrite function and return a new value with

@@ -134,23 +134,19 @@ namespace ink::runtime::internal
 		if(found->name == name) { return &found->data; }
 		return nullptr;
 	}
-
-	template<>
-	void basic_stack::push_frame<frame_type::function>(offset_t return_to, bool eval)
+	
+	template <frame_type stack_frame_type>
+	void basic_stack::push_frame(offset_t return_to, bool eval)
 	{
-		add(InvalidHash, value{}.set<value_type::function_frame>(return_to, eval));
+		if constexpr (stack_frame_type == frame_type::function) {
+			add(InvalidHash, value{}.set<value_type::function_frame>(return_to, eval));			
+		} else if constexpr (stack_frame_type == frame_type::tunnel) {
+			add(InvalidHash, value{}.set<value_type::tunnel_frame>(return_to, eval));
+		} else if constexpr (stack_frame_type == frame_type::thread) {
+			add(InvalidHash, value{}.set<value_type::thread_frame>(return_to, eval));
+		} 
 	}
-	template<>
-	void basic_stack::push_frame<frame_type::tunnel>(offset_t return_to, bool eval)
-	{
-		add(InvalidHash, value{}.set<value_type::tunnel_frame>(return_to, eval));
-	}
-	template<>
-	void basic_stack::push_frame<frame_type::thread>(offset_t return_to, bool eval)
-	{
-		add(InvalidHash, value{}.set<value_type::thread_frame>(return_to, eval));
-	}
-
+	
 	const entry* basic_stack::pop()
 	{
 		return &base::pop([](const entry& elem) { return elem.name == ~0; });
